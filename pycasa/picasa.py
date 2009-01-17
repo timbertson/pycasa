@@ -1,8 +1,13 @@
+import os
 import re
+
+def dbg(s):
+	print(s)
 
 # attribute constants
 TAGS = 'keywords'
 CAPTION = 'caption'
+PICASA_FILENAME = '.picasa.ini'
 
 class PicasaIni(object):
 	# read in a picasa file from dir, and 
@@ -22,16 +27,60 @@ class PicasaIni(object):
 
 	def __init__(self, dirname):
 		self.dirname = dirname
-		self.fileinfo = self._load_ini()
+		self.ini_info = self._load_ini()
+		self._convert_special_flags()
 	
 	def __getitem__(self, item):
-		item = os.path.getbasename(info)
-		return fileinfo.get(item, {})
+		item_dirname = os.path.dirname(item)
+		if not item_dirname == self.dirname:
+			raise ValueError("ini file for %s directory does not have information for files in %s" % (self.dirname, item_dirname))
+		item = os.path.basename(item)
+		dbg("ini getitem %s, all items = %s" % (item, self.ini_info))
+		print self.ini_info.get(item, {})
+		return self.ini_info.get(item, {})
+	
+	newfile = re.compile('^\s*\[(.*)\]\s*$')
 	
 	def _load_ini(self):
-		#TODO: load self.dirname/.picasa.ini
-		#FIXME: picasa adds metainfo directly to .jpg files, and not to the .ini
-		return {}
+		inifilename = os.path.join(self.dirname, PICASA_FILENAME)
+		try:
+			f = open(inifilename)
+		except IOError:
+			dbg("no ini file")
+			return {}
+		
+		info = {}
+		current_file = None
+		for line in f.readlines():
+			if len(line.strip()) == 0:
+				continue # blank line
+			match = self.newfile.match(line)
+			if match:
+				current_file = match.group(1)
+				if current_file not in info:
+					info[current_file] = {}
+			else:
+				if '=' in line:
+					attr, val = [s.strip() for s in line.split('=', 1)]
+					if current_file is None:
+						dbg("no current file to apply attr: %s" % (line,))
+					else:
+						print "setting attr %s = %s" % (attr,val)
+						info[current_file][attr] = val
+				else:
+					dbg("doesn't look like an attr to me: %s" % (line, ))
+		f.close()
+		return info
+	
+	def _convert_special_flags(self):
+		"""
+		modifies special flags into their appropriate form. i.e: {'star':'yes'} becomes {'star':True}
+		"""
+		for file_, attrs in self.ini_info.items():
+			if 'star' in attrs:
+				print "converting"
+				attrs['star'] = (attrs['star'].lower() == 'yes')
+			
 
 class PicasaInfo(object):
 	ini_files = {}
@@ -52,23 +101,49 @@ class PicasaInfo(object):
 		self.base = os.path.abspath(os.path.dirname(filename))
 		if self.base not in self.ini_files:
 			self.ini_files[self.base] = PicasaIni(self.base)
-		self.ini = ini_files[self.base]
+		self.ini = self.ini_files[self.base]
 
 		self.ini_info = self.ini[self.filename]
 		self.file_info = FileInfo(self.filename)
 	
 	def items(self):
-		return self.ini_info.copy().update(self.iptc_info)
-		
+		return self.combined_items.items()
+	
+	def get_combined_hash(self):
+		combined = self.ini_info.copy()
+		combined.update(self.file_info)
+		return combined
+	combined_hash = property(get_combined_hash)
+	
+	def __getitem__(self, item):
+		"""return value for item (or None)"""
+		return self.which_info(item).get(item, None)
+	
+	def __eq__(self, other):
+		if isinstance(other, self.__class__):
+			return self.combined_hash == other.combined_hash
+		else:
+			return self.combined_hash == other
+	
+	def __repr__(self):
+		return "<%s for %s: %s>" % (self.__class__.__name__, self.filename, self.combined_hash)
 		
 import iptcinfo
 class FileInfo(object):
 	def __init__(self, filename):
-		iptc = iptcinfo.IPTCInfo(filename)
-		info_hash = {}
-		info_hash[CAPTION] = iptc.get_data()['caption/abstract']
-		info_hash[TAGS] = iptc.keywords
+		self.info_hash = {}
+		try:
+			iptc = iptcinfo.IPTCInfo(filename)
+		except IOError:
+			return
+
+		self.info_hash[CAPTION] = iptc.get_data()['caption/abstract']
+		self.info_hash[TAGS] = iptc.keywords
 		
 	def items(self):
 		return self.info_hash
+	
+	def __iter__(self):
+		return self.info_hash.__iter__()
+	
 
