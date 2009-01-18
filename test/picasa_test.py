@@ -68,5 +68,6 @@ class PicasaTest(TestCase):
 		self.assertEqual(info['caption'], 'foo=bar')
 
 	def test_should_load_jpeg_info(self):
-		import iptcinfo
-		iptcinfo.
+		# fixture photo has both picasa.ini info and IPTC info:
+		info = picasa.PicasaInfo(os.path.join(os.path.dirname(__file__), 'fixtures', 'DSCN1635.JPG'))
+		self.assertEqual(info, {'star':True })
