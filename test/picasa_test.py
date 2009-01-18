@@ -66,8 +66,33 @@ class PicasaTest(TestCase):
 			""")
 		info = picasa.PicasaInfo('/tmp/a')
 		self.assertEqual(info['caption'], 'foo=bar')
+	
+	def test_should_split_tags_on_commas(self):
+		self.write_ini("""
+			[a]
+			keywords=a,b, cd
+			""")
+		info = picasa.PicasaInfo('/tmp/a')
+		self.assertEqual(info['keywords'], ['a','b','cd'])
 
+	# --------------------------------
+	# fixture-based tests
 	def test_should_load_jpeg_info(self):
-		# fixture photo has both picasa.ini info and IPTC info:
-		info = picasa.PicasaInfo(os.path.join(os.path.dirname(__file__), 'fixtures', 'DSCN1635.JPG'))
-		self.assertEqual(info, {'star':True })
+		info = picasa.PicasaInfo(os.path.join(os.path.dirname(__file__), 'fixtures', 'DSCN1636.JPG'))
+		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
+	
+	@ignore
+	def test_should_save_ini_info(self):
+		self.write_ini("""[a]
+			a=b
+			""")
+		info = picasa.PicasaInfo('/tmp/a')
+		info['x'] = 'y'
+		info['a'] = 'x'
+		lines = list(open(self.files[0], 'r').readlines())
+		self.assertEqual(lines[0], '[a]')
+		self.assertEqual(sorted(lines[1:]), ['a=x', 'x=y'])
+
+	@ignore
+	def test_should_save_jpeg_info(self):
+		pass

@@ -7,6 +7,7 @@ def dbg(s):
 # attribute constants
 TAGS = 'keywords'
 CAPTION = 'caption'
+STAR = 'star'
 PICASA_FILENAME = '.picasa.ini'
 
 class PicasaIni(object):
@@ -77,10 +78,11 @@ class PicasaIni(object):
 		modifies special flags into their appropriate form. i.e: {'star':'yes'} becomes {'star':True}
 		"""
 		for file_, attrs in self.ini_info.items():
-			if 'star' in attrs:
+			if STAR in attrs:
 				print "converting"
-				attrs['star'] = (attrs['star'].lower() == 'yes')
-			
+				attrs[STAR] = (attrs[STAR].lower() == 'yes')
+			if TAGS in attrs:
+				attrs[TAGS] = [k.strip() for k in attrs[TAGS].split(',')]
 
 class PicasaInfo(object):
 	ini_files = {}
@@ -111,7 +113,7 @@ class PicasaInfo(object):
 	
 	def get_combined_hash(self):
 		combined = self.ini_info.copy()
-		combined.update(self.file_info)
+		combined.update(self.file_info.dict())
 		return combined
 	combined_hash = property(get_combined_hash)
 	
@@ -137,7 +139,7 @@ class FileInfo(object):
 		except IOError:
 			return
 
-		self.info_hash[CAPTION] = iptc.get_data()['caption/abstract']
+		self.info_hash[CAPTION] = iptc.getData()['caption/abstract']
 		self.info_hash[TAGS] = iptc.keywords
 		
 	def items(self):
@@ -146,4 +148,6 @@ class FileInfo(object):
 	def __iter__(self):
 		return self.info_hash.__iter__()
 	
+	def dict(self):
+		return self.info_hash
 
