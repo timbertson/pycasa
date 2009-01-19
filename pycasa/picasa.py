@@ -9,6 +9,7 @@ TAGS = 'keywords'
 CAPTION = 'caption'
 STAR = 'star'
 PICASA_FILENAME = '.picasa.ini'
+STAR_FLAG = 'yes'
 
 class PicasaIni(object):
 	# read in a picasa file from dir, and 
@@ -27,12 +28,13 @@ class PicasaIni(object):
 	#   keywords=a,b,c
 
 	def __init__(self, dirname):
-		self.dirname = dirname
+		self.dirname = os.path.abspath(dirname)
+		self.ini_filename = os.path.join(self.dirname, PICASA_FILENAME)
 		self.ini_info = self._load_ini()
-		self._convert_special_flags()
+		self._decode_special_flags()
 	
 	def __getitem__(self, item):
-		item_dirname = os.path.dirname(item)
+		item_dirname = os.path.dirname(os.path.abspath(item))
 		if not item_dirname == self.dirname:
 			raise ValueError("ini file for %s directory does not have information for files in %s" % (self.dirname, item_dirname))
 		item = os.path.basename(item)
@@ -43,13 +45,11 @@ class PicasaIni(object):
 	newfile = re.compile('^\s*\[(.*)\]\s*$')
 	
 	def _load_ini(self):
-		inifilename = os.path.join(self.dirname, PICASA_FILENAME)
 		try:
-			f = open(inifilename)
+			f = open(self.ini_filename)
 		except IOError:
 			dbg("no ini file")
 			return {}
-		
 		info = {}
 		current_file = None
 		for line in f.readlines():
@@ -73,29 +73,62 @@ class PicasaIni(object):
 		f.close()
 		return info
 	
-	def _convert_special_flags(self):
+	def save(self):
+		print "wiriting ini"
+		print self.ini_info
+		self._encode_special_flags()
+		output = []
+		for file_, attrs in self.ini_info.items():
+			output.append("[%s]" % (file_,))
+			for key, val in attrs.items():
+				output.append("%s=%s" % (key, val))
+		print '=' * 80 + '\n' + '\n'.join(output) + '\n' + '=' * 80
+
+		f = open(self.ini_filename, 'w')
+		f.write('\n'.join(output))
+		f.close()
+		self._decode_special_flags()
+	
+	def _encode_special_flags(self):
+		"""
+		returns a copy dict with special flags in their on-disk form. i.e: {'star':True} becomes {'star':'yes'}
+		"""
+		for file_, attrs in self.ini_info.items():
+			if STAR in attrs:
+				if attrs[STAR]:
+					attrs[STAR] = STAR_FLAG
+				else:
+					del attrs[STAR]
+					
+			if TAGS in attrs:
+				attrs[TAGS] = ','.join(attrs[TAGS])
+		
+	def _decode_special_flags(self):
 		"""
 		modifies special flags into their appropriate form. i.e: {'star':'yes'} becomes {'star':True}
 		"""
 		for file_, attrs in self.ini_info.items():
 			if STAR in attrs:
-				print "converting"
-				attrs[STAR] = (attrs[STAR].lower() == 'yes')
+				attrs[STAR] = (attrs[STAR].lower() == STAR_FLAG)
 			if TAGS in attrs:
 				attrs[TAGS] = [k.strip() for k in attrs[TAGS].split(',')]
 
 class PicasaInfo(object):
+	@classmethod
+	def _reset(cls):
+		"""for use in tests only"""
+		cls.ini_files = {}
 	ini_files = {}
 
 	iptc_regex = re.compile('\.jpe?g$',re.I)
 	iptc_attrs = [TAGS, CAPTION]
 	
 	def which_info(self, attr):
-		if self.iptc_regex.search(self.filename) is not None:
+		if self.file_info and self.iptc_regex.search(self.filename) is not None:
 			# it's an iptc-compatible file
 			if attr in self.iptc_attrs:
 				# and it's an attribute that picasa stores in IPTC:
-				return self.iptc_info
+				return self.file_info
 		return self.ini_info
 		
 	def __init__(self, filename):
@@ -106,20 +139,32 @@ class PicasaInfo(object):
 		self.ini = self.ini_files[self.base]
 
 		self.ini_info = self.ini[self.filename]
-		self.file_info = FileInfo(self.filename)
+
+		self.file_info = None
+		if self.iptc_regex.search(self.filename) is not None and os.path.isfile(self.filename):
+			self.file_info = FileInfo(self.filename)
 	
 	def items(self):
 		return self.combined_items.items()
 	
 	def get_combined_hash(self):
 		combined = self.ini_info.copy()
-		combined.update(self.file_info.dict())
+		if self.file_info:
+			combined.update(self.file_info.dict())
 		return combined
 	combined_hash = property(get_combined_hash)
+	
+	def save(self):
+		self.ini.save()
+		if self.file_info:
+			self.file_info.save()
 	
 	def __getitem__(self, item):
 		"""return value for item (or None)"""
 		return self.which_info(item).get(item, None)
+	
+	def __setitem__(self, item, val):
+		self.which_info(item)[item] = val
 	
 	def __eq__(self, other):
 		if isinstance(other, self.__class__):
@@ -134,13 +179,10 @@ import iptcinfo
 class FileInfo(object):
 	def __init__(self, filename):
 		self.info_hash = {}
-		try:
-			iptc = iptcinfo.IPTCInfo(filename)
-		except IOError:
-			return
+		self.iptc = iptcinfo.IPTCInfo(filename)
 
-		self.info_hash[CAPTION] = iptc.getData()['caption/abstract']
-		self.info_hash[TAGS] = iptc.keywords
+		self.info_hash[CAPTION] = self.iptc.getData()['caption/abstract']
+		self.info_hash[TAGS] = self.iptc.keywords
 		
 	def items(self):
 		return self.info_hash
@@ -151,3 +193,11 @@ class FileInfo(object):
 	def dict(self):
 		return self.info_hash
 
+	def get(self, item, default):
+		return self.info_hash.get(item, default)
+	
+	def __setitem__(self, item, val):
+		self.info_hash[item] = val
+
+	def save(self):
+		self.iptc.save()

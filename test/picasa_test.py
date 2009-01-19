@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 sys.path.append('..')
 
 print __file__
@@ -11,6 +12,8 @@ from mocktest import *
 from pycasa import picasa
 print globals().keys()
 
+FIXTURE_A = 'DSCN1636.JPG'
+
 class PicasaTest(TestCase):
 	def setUp(self):
 		self.files = []
@@ -19,7 +22,7 @@ class PicasaTest(TestCase):
 		for f in self.files:
 			os.remove(f)
 		# remove cached ini files
-		picasa.PicasaInfo.ini_files = {}
+		picasa.PicasaInfo._reset()
 	
 	def write_ini(self, contents):
 		filename = '/tmp/.picasa.ini'
@@ -74,14 +77,21 @@ class PicasaTest(TestCase):
 			""")
 		info = picasa.PicasaInfo('/tmp/a')
 		self.assertEqual(info['keywords'], ['a','b','cd'])
+	
+	def test_should_use_empty_dict_if_no_ini_file(self):
+		info = picasa.PicasaInfo('/tmp/a')
+		self.assertEqual(info, {})
 
 	# --------------------------------
 	# fixture-based tests
 	def test_should_load_jpeg_info(self):
-		info = picasa.PicasaInfo(os.path.join(os.path.dirname(__file__), 'fixtures', 'DSCN1636.JPG'))
+		info = picasa.PicasaInfo(os.path.join(os.path.dirname(__file__), 'fixtures', FIXTURE_A))
 		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
 	
 	@ignore
+	def test_save_should_create_ini_if_there_is_none(self):
+		pass
+		
 	def test_should_save_ini_info(self):
 		self.write_ini("""[a]
 			a=b
@@ -89,10 +99,32 @@ class PicasaTest(TestCase):
 		info = picasa.PicasaInfo('/tmp/a')
 		info['x'] = 'y'
 		info['a'] = 'x'
-		lines = list(open(self.files[0], 'r').readlines())
+		info.save()
+		lines = list([line.strip() for line in open(self.files[0], 'r').readlines() if len(line.strip()) > 0])
 		self.assertEqual(lines[0], '[a]')
 		self.assertEqual(sorted(lines[1:]), ['a=x', 'x=y'])
 
-	@ignore
 	def test_should_save_jpeg_info(self):
-		pass
+		fixtures_mod_path = os.path.join(os.path.dirname(__file__), 'fixtures_mod')
+		fixtures_orig_path = os.path.join(os.path.dirname(__file__), 'fixtures')
+		try:
+			shutil.rmtree(fixtures_mod_path)
+		except:
+			pass
+		shutil.copytree(fixtures_orig_path, fixtures_mod_path)
+		try:
+			info = picasa.PicasaInfo(os.path.join(fixtures_mod_path, FIXTURE_A))
+			self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
+			info['keywords'] += 'c'
+			info['star'] = False
+
+			self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!', 'star':False})
+
+			print open(os.path.join(fixtures_mod_path, '.picasa.ini')).readlines()
+			info.save()
+			picasa.PicasaInfo._reset()
+			info = picasa.PicasaInfo('fixtures_mod/' + FIXTURE_A)
+
+			self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!', 'star':False})
+		finally:
+			shutil.rmtree(fixtures_mod_path)
