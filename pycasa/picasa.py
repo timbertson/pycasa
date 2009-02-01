@@ -8,8 +8,22 @@ def dbg(s):
 TAGS = 'keywords'
 CAPTION = 'caption'
 STAR = 'star'
+RATING = 'rating'
+RATING_THRESHOLD = 50
 PICASA_FILENAME = '.picasa.ini'
 STAR_FLAG = 'yes'
+
+def proxy(attr):
+	def decorate(func):
+		name = func.__name__
+		def fn(self, *args):
+			# call the original method before the proxy happens
+			func(self, *args)
+			delegate = getattr(self, attr)
+			return getattr(delegate, name)(*args)
+		fn.__name__ = name
+		return fn
+	return decorate
 
 class PicasaIni(object):
 	# read in a picasa file from dir, and 
@@ -42,13 +56,16 @@ class PicasaIni(object):
 		print self.ini_info.get(item, {})
 		return self.ini_info.get(item, {})
 	
+	@proxy('ini_info')
+	def __delitem__(self, item): pass
+	
 	newfile = re.compile('^\s*\[(.*)\]\s*$')
 	
 	def _load_ini(self):
 		try:
 			f = open(self.ini_filename)
 		except IOError:
-			dbg("no ini file")
+			dbg("no ini file: %s" % (self.ini_filename))
 			return {}
 		info = {}
 		current_file = None
@@ -74,8 +91,7 @@ class PicasaIni(object):
 		return info
 	
 	def save(self):
-		print "wiriting ini"
-		print self.ini_info
+		print "wiriting ini: %s" % (self.ini_info,)
 		self._encode_special_flags()
 		output = []
 		for file_, attrs in self.ini_info.items():
@@ -87,6 +103,13 @@ class PicasaIni(object):
 		f = open(self.ini_filename, 'w')
 		f.write('\n'.join(output))
 		f.close()
+		
+		print "DBG: saved file contents are:"
+		f = open(self.ini_filename)
+		print '\n'.join(f.readlines())
+		print "DBG: saved file contents"
+
+		
 		self._decode_special_flags()
 	
 	def _encode_special_flags(self):
@@ -154,6 +177,11 @@ class PicasaInfo(object):
 		return combined
 	combined_hash = property(get_combined_hash)
 	
+	def replace_with(self, new_dict):
+		self._clear()
+		for (k,v) in new_dict.items():
+			self[k] = v
+	
 	def save(self):
 		self.ini.save()
 		if self.file_info:
@@ -165,12 +193,26 @@ class PicasaInfo(object):
 	
 	def __setitem__(self, item, val):
 		self.which_info(item)[item] = val
+		if item == RATING:
+			self.which_info(STAR)[STAR] = int(val) >= RATING_THRESHOLD
 	
+	def __delitem__(self, item):
+		"""delete from *both* info stores"""
+		for store in (self.file_info, self.ini_info):
+			if store is not None:
+				try:
+					del store[item]
+				except KeyError: pass
+			
 	def __eq__(self, other):
 		if isinstance(other, self.__class__):
 			return self.combined_hash == other.combined_hash
 		else:
 			return self.combined_hash == other
+	
+	def _clear(self):
+		for k in self.combined_hash:
+			del self[k]
 	
 	def __repr__(self):
 		return "<%s for %s: %s>" % (self.__class__.__name__, self.filename, self.combined_hash)
@@ -196,8 +238,14 @@ class FileInfo(object):
 	def get(self, item, default):
 		return self.info_hash.get(item, default)
 	
-	def __setitem__(self, item, val):
-		self.info_hash[item] = val
+	# def __setitem__(self, item, val):
+	# 	self.info_hash[item] = val
+	
+	@proxy('info_hash')
+	def __setitem__(self, item, val): pass
+
+	@proxy('info_hash')
+	def __delitem__(self, item): pass
 
 	def save(self):
 		self.iptc.save()

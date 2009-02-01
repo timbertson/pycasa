@@ -1,6 +1,6 @@
 import os
-import sys
 import shutil
+import sys
 sys.path.append('..')
 
 print __file__
@@ -10,11 +10,10 @@ import eggloader
 from mocktest import *
 
 from pycasa import picasa
-print globals().keys()
 
 FIXTURE_A = 'DSCN1636.JPG'
 
-class PicasaTest(TestCase):
+class AbsPicasaTest(TestCase):
 	def setUp(self):
 		self.files = []
 		
@@ -30,7 +29,8 @@ class PicasaTest(TestCase):
 		f = open(filename, 'w')
 		f.write(contents)
 		f.close()
-		
+
+class PicasaTest(AbsPicasaTest):
 	def test_should_load_ini_info_for_multiple_files(self):
 		self.write_ini("""
 			[a]
@@ -81,17 +81,7 @@ class PicasaTest(TestCase):
 	def test_should_use_empty_dict_if_no_ini_file(self):
 		info = picasa.PicasaInfo('/tmp/a')
 		self.assertEqual(info, {})
-
-	# --------------------------------
-	# fixture-based tests
-	def test_should_load_jpeg_info(self):
-		info = picasa.PicasaInfo(os.path.join(os.path.dirname(__file__), 'fixtures', FIXTURE_A))
-		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
 	
-	@ignore
-	def test_save_should_create_ini_if_there_is_none(self):
-		pass
-		
 	def test_should_save_ini_info(self):
 		self.write_ini("""[a]
 			a=b
@@ -103,8 +93,55 @@ class PicasaTest(TestCase):
 		lines = list([line.strip() for line in open(self.files[0], 'r').readlines() if len(line.strip()) > 0])
 		self.assertEqual(lines[0], '[a]')
 		self.assertEqual(sorted(lines[1:]), ['a=x', 'x=y'])
+		
+	def test_should_get_star_from_rating_if_rating_key_exists(self):
+		self.write_ini("""
+			[a]
+			keywords=a,b, cd
+			rating=50
+			[b]
+			rating=49
+			""")
+		info_a = picasa.PicasaInfo('/tmp/a')
+		info_b = picasa.PicasaInfo('/tmp/b')
+		
+		# star conversion is done only when replacing the entire dict
+		info_a.replace_with(info_a.combined_hash)
+		info_b.replace_with(info_b.combined_hash)
+		
+		self.assertEqual(info_a['star'], True)
+		self.assertEqual(info_b['star'], False)
 
-	def test_should_save_jpeg_info(self):
+class FixtureTest(AbsPicasaTest):
+	def setUp(self):
+		super(self.__class__, self).setUp()
+		self.fixtures_path = os.path.join(os.path.dirname(__file__), 'fixtures')
+	
+	def fixture_info(self, name):
+		return picasa.PicasaInfo(os.path.join(self.fixtures_path, name))
+	
+	def test_should_load_jpeg_info(self):
+		info = self.fixture_info(FIXTURE_A)
+		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
+	
+	def test_should_replace_info_dict_with_a_new_one(self):
+		info = self.fixture_info(FIXTURE_A)
+		info.replace_with({'star':True, 'keywords':['foo','bar']})
+		self.assertEqual(info, {'rating':90, 'keywords':['foo','bar']})
+		
+		# make sure they ended up in the appropriate dict:
+		self.assertEqual(info.ini_info, {'star':True})
+		self.assertEqual(info.file_info, {'keywords':['foo','bar'], 'rating':90})
+
+	@ignore
+	def test_save_should_create_ini_on_save_if_there_is_none(self):
+		pass
+		
+
+
+class DestructiveFixtureTest(AbsPicasaTest):
+	def setUp(self):
+		super(self.__class__, self).setUp()
 		fixtures_mod_path = os.path.join(os.path.dirname(__file__), 'fixtures_mod')
 		fixtures_orig_path = os.path.join(os.path.dirname(__file__), 'fixtures')
 		try:
@@ -112,19 +149,25 @@ class PicasaTest(TestCase):
 		except:
 			pass
 		shutil.copytree(fixtures_orig_path, fixtures_mod_path)
-		try:
-			info = picasa.PicasaInfo(os.path.join(fixtures_mod_path, FIXTURE_A))
-			self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
-			info['keywords'] += 'c'
-			info['star'] = False
+		self.fixtures_path = fixtures_mod_path
+	
+	def tearDown(self):
+		super(self.__class__, self).tearDown()
+		shutil.rmtree(self.fixtures_path)
+		
+		
+	def test_should_save_jpeg_info(self):
+		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
+		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
+		info['keywords'] += 'c'
+		info['star'] = False
 
-			self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!', 'star':False})
+		# check in-memory version
+		self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!', 'star':False})
 
-			print open(os.path.join(fixtures_mod_path, '.picasa.ini')).readlines()
-			info.save()
-			picasa.PicasaInfo._reset()
-			info = picasa.PicasaInfo('fixtures_mod/' + FIXTURE_A)
-
-			self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!', 'star':False})
-		finally:
-			shutil.rmtree(fixtures_mod_path)
+		info.save()
+		picasa.PicasaInfo._reset()
+		
+		# on-disk version
+		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
+		self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!'})
