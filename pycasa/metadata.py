@@ -2,7 +2,10 @@ import os
 
 from picasa import PicasaInfo
 from metamonkey import MetaMonkeyInfo
-from iptc import IPTCInfo
+try:
+	from iptc import IPTCInfo
+except ImportError:
+	from lib.iptcinfo import IPTCInfo
 
 class Info(object):
 	def __init__(self, filename):

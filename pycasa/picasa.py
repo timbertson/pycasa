@@ -3,15 +3,12 @@ import re
 
 def dbg(s):
 	print(s)
+	
+from keys import *
 
-# attribute constants
-TAGS = 'keywords'
-CAPTION = 'caption'
-STAR = 'star'
-RATING = 'rating'
 RATING_THRESHOLD = 50
-PICASA_FILENAME = '.picasa.ini'
 STAR_FLAG = 'yes'
+PICASA_FILENAME = '.picasa.ini'
 
 def proxy(attr):
 	def decorate(func):
