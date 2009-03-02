@@ -2,7 +2,8 @@ import os
 import re
 
 def dbg(s):
-	print(s)
+	return
+	print("> %s" % (s,))
 	
 from keys import *
 
@@ -50,7 +51,6 @@ class PicasaIni(object):
 			raise ValueError("ini file for %s directory does not have information for files in %s" % (self.dirname, item_dirname))
 		item = os.path.basename(item)
 		dbg("ini getitem %s, all items = %s" % (item, self.ini_info))
-		print self.ini_info.get(item, {})
 		return self.ini_info.get(item, {})
 	
 	@proxy('ini_info')

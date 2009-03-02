@@ -43,5 +43,14 @@ class Info(object):
 	def _merge(self, dicts):
 		"""merge two (or more) dicts, taking the most "useful" value amongst all dicts for each key"""
 		raise NotImplementedError
+	
+	def items(self):
+		for name,info in self.infos.items():
+			yield info.items()
+			# for k,v in info.items():
+			# 	print k
+			# 	print v
+			# 	yield k,v
+
 
 

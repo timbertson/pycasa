@@ -16,19 +16,20 @@ class Main(Command):
 			raise RuntimeError("action not yet supported: %s" % (action))
 		
 	def run(self, opts):
-		print repr(opts._dict)
 		self.opts = opts
 		os.path.walk(opts.src, self.walk_cb, getattr(self, opts.action))
 	
 	def list(self, info):
+		for k,v in info.items():
+			print k
+			print v
 		print "** %s" % (info.infos,)
 	
 	def walk_cb(self, action, dirname, fnames):
 		for fname in fnames[:]:
 			fullpath = os.path.join(dirname, fname)
-			print fullpath
 			if os.path.isfile(fullpath):
-				info = metadata.Info(fname)
+				info = metadata.Info(fullpath)
 				action(info)
 			elif not self.opts.recurse:
 				fnames.remove(fname)
