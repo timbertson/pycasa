@@ -18,22 +18,26 @@ class Main(Command):
 	def run(self, opts):
 		self.opts = opts
 		os.path.walk(opts.src, self.walk_cb, getattr(self, opts.action))
+		print self.count
 	
-	def list(self, info):
+	def list(self, file_path, info):
+		if len(info) == 0: return
+		print
+		print file_path
+		print '-' * 80
 		for k,v in info.items():
-			print k
-			print v
-		print "** %s" % (info.infos,)
+			print "%s=%s" % (k,v)
 	
 	def walk_cb(self, action, dirname, fnames):
+		self.count = 0
 		for fname in fnames[:]:
 			fullpath = os.path.join(dirname, fname)
 			if os.path.isfile(fullpath):
 				info = metadata.Info(fullpath)
-				action(info)
+				self.count += 1
+				action(fullpath, info)
 			elif not self.opts.recurse:
 				fnames.remove(fname)
 	
-
 if __name__ == '__main__':
 	Main()

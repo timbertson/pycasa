@@ -78,12 +78,11 @@ class PicasaIni(object):
 				if '=' in line:
 					attr, val = [s.strip() for s in line.split('=', 1)]
 					if current_file is None:
-						dbg("no current file to apply attr: %s" % (line,))
+						print "no current file to apply attr: %s" % (line,)
 					else:
-						print "setting attr %s = %s" % (attr,val)
 						info[current_file][attr] = val
 				else:
-					dbg("doesn't look like an attr to me: %s" % (line, ))
+					print "doesn't look like an attr to me: %s" % (line, )
 		f.close()
 		return info
 	
@@ -165,7 +164,10 @@ class PicasaInfo(object):
 			self.file_info = FileInfo(self.filename)
 	
 	def items(self):
-		return self.combined_items.items()
+		return self.combined_hash.items()
+	
+	def __len__(self):
+		return len(self.combined_hash)
 	
 	def get_combined_hash(self):
 		combined = self.ini_info.copy()
@@ -218,10 +220,17 @@ import iptcinfo
 class FileInfo(object):
 	def __init__(self, filename):
 		self.info_hash = {}
-		self.iptc = iptcinfo.IPTCInfo(filename)
+		self._extract_iptc_info(filename)
+	
+	def _extract_iptc_info(self, filename):
+		try:
+			self.iptc = iptcinfo.IPTCInfo(filename)
+		except Exception: # dammit iptc! raising Exception is bad form
+			self.iptc = None
 
-		self.info_hash[CAPTION] = self.iptc.getData()['caption/abstract']
-		self.info_hash[TAGS] = self.iptc.keywords
+		if self.iptc is not None:
+			self.info_hash[CAPTION] = self.iptc.getData()['caption/abstract']
+			self.info_hash[TAGS] = self.iptc.keywords
 		
 	def items(self):
 		return self.info_hash
@@ -235,9 +244,6 @@ class FileInfo(object):
 	def get(self, item, default):
 		return self.info_hash.get(item, default)
 	
-	# def __setitem__(self, item, val):
-	# 	self.info_hash[item] = val
-	
 	@proxy('info_hash')
 	def __setitem__(self, item, val): pass
 
@@ -245,4 +251,5 @@ class FileInfo(object):
 	def __delitem__(self, item): pass
 
 	def save(self):
-		self.iptc.save()
+		if self.iptc is not None:
+			self.iptc.save()

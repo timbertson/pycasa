@@ -33,7 +33,10 @@ class MetaMonkeyInfo(object):
 		self.info = self._load_info()
 	
 	def items(self):
-		return self.info
+		return self.info.items()
+	
+	def __len__(self):
+		return len(self.info)
 	
 	def _load_info(self):
 		info = {}

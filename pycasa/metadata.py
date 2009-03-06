@@ -46,11 +46,10 @@ class Info(object):
 	
 	def items(self):
 		for name,info in self.infos.items():
-			yield info.items()
-			# for k,v in info.items():
-			# 	print k
-			# 	print v
-			# 	yield k,v
-
+			for k,v in info.items():
+				yield k,v
+	
+	def __len__(self):
+		return sum(map(len, self.infos.values()))
 
 

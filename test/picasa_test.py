@@ -10,6 +10,7 @@ import eggloader
 from mocktest import *
 
 from pycasa import picasa
+from pycasa.picasa import iptcinfo
 
 FIXTURE_A = 'DSCN1636.JPG'
 
@@ -171,3 +172,9 @@ class DestructiveFixtureTest(AbsPicasaTest):
 		# on-disk version
 		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
 		self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!'})
+
+class IPTCTest(TestCase):
+	def test_should_not_fail_on_IPTC_exception(self):
+		mock_on(iptcinfo).IPTCInfo.raising(Exception('some stuff went badly'))
+		self.assertEqual(picasa.FileInfo('some_path').info_hash, {})
+	
