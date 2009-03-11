@@ -126,6 +126,7 @@ class FixtureTest(AbsPicasaTest):
 		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
 	
 	def test_should_replace_info_dict_with_a_new_one(self):
+		#TODO: figure out whether STAR or RATING should be used here
 		info = self.fixture_info(FIXTURE_A)
 		info.replace_with({'star':True, 'keywords':['foo','bar']})
 		self.assertEqual(info, {'rating':90, 'keywords':['foo','bar']})
