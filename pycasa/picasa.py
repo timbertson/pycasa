@@ -1,13 +1,11 @@
 import os
 import re
 
-def dbg(s):
-	return
-	print("> %s" % (s,))
+from output import dbg, puts
 	
 from keys import *
 
-RATING_THRESHOLD = 50
+RATING_THRESHOLD = 3
 STAR_FLAG = 'yes'
 PICASA_FILENAME = '.picasa.ini'
 
@@ -22,6 +20,29 @@ def proxy(attr):
 		fn.__name__ = name
 		return fn
 	return decorate
+
+
+def _track(func):
+	def _(self, *a, **k):
+		self._modified = True
+		print "modified: %r" % (self)
+		return getattr(super(self.__class__, self), func.__name__)(*a, **k)
+	return _
+
+class TrackingDict(dict):
+	def __init__(self):
+		super(self.__class__, self).__init__()
+		self._modified = False
+	
+	def modified(self):
+		print "modified? %r - %s" % (self, 'yes' if self._modified else 'no')
+		return self._modified
+	
+	@_track
+	def __setitem__(self, *a): pass
+
+	@_track
+	def __delitem__(self, *a): pass
 
 class PicasaIni(object):
 	# read in a picasa file from dir, and 
@@ -50,9 +71,10 @@ class PicasaIni(object):
 		if not item_dirname == self.dirname:
 			raise ValueError("ini file for %s directory does not have information for files in %s" % (self.dirname, item_dirname))
 		item = os.path.basename(item)
-		dbg("ini getitem %s, all items = %s" % (item, self.ini_info))
+		# dbg("ini getitem %s, all items = %s" % (item, self.ini_info))
 		if not item in self.ini_info:
-			self.ini_info[item] = {}
+			dbg("adding file: %s" % (item,))
+			self.ini_info[item] = TrackingDict()
 		return self.ini_info[item]
 	
 	@proxy('ini_info')
@@ -71,11 +93,12 @@ class PicasaIni(object):
 		for line in f.readlines():
 			if len(line.strip()) == 0:
 				continue # blank line
+			dbg("loading line: %s" % (line,))
 			match = self.newfile.match(line)
 			if match:
 				current_file = match.group(1)
 				if current_file not in info:
-					info[current_file] = {}
+					info[current_file] = TrackingDict()
 			else:
 				if '=' in line:
 					attr, val = [s.strip() for s in line.split('=', 1)]
@@ -89,24 +112,29 @@ class PicasaIni(object):
 		return info
 	
 	def save(self):
-		print "wiriting ini: %s" % (self.ini_info,)
+		dbg("writing ini: %s" % (self.ini_info,))
 		self._encode_special_flags()
 		output = []
 		for file_, attrs in self.ini_info.items():
+			if not attrs.modified():
+				dbg("skipping...")
+				continue
 			output.append("[%s]" % (file_,))
 			for key, val in attrs.items():
 				output.append("%s=%s" % (key, val))
-			output.append("\n")
-		print '=' * 80 + '\n' + '\n'.join(output) + '\n' + '=' * 80
+			output.append("")
+		dbg('=' * 80 + '\n' + '\n'.join(output) + '\n' + '=' * 80)
+		if len(output) == 0:
+			return
 
 		f = open(self.ini_filename, 'w')
 		f.write('\n'.join(output))
 		f.close()
 		
-		print "DBG: saved file contents are:"
+		dbg("saved file contents are:")
 		f = open(self.ini_filename)
-		print '\n'.join(f.readlines())
-		print "DBG: saved file contents"
+		dbg('\n'.join(f.readlines()))
+		dbg("saved file contents")
 
 		
 		self._decode_special_flags()
@@ -180,6 +208,10 @@ class PicasaInfo(object):
 	combined_hash = property(get_combined_hash)
 	
 	def replace_with(self, new_dict):
+		dbg("%s replacing with %s" % (self.combined_hash, new_dict))
+		if self.combined_hash == new_dict:
+			dbg("identical..")
+			return
 		self._clear()
 		for (k,v) in new_dict.items():
 			self[k] = v
