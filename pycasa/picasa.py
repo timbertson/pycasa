@@ -51,7 +51,9 @@ class PicasaIni(object):
 			raise ValueError("ini file for %s directory does not have information for files in %s" % (self.dirname, item_dirname))
 		item = os.path.basename(item)
 		dbg("ini getitem %s, all items = %s" % (item, self.ini_info))
-		return self.ini_info.get(item, {})
+		if not item in self.ini_info:
+			self.ini_info[item] = {}
+		return self.ini_info[item]
 	
 	@proxy('ini_info')
 	def __delitem__(self, item): pass
@@ -94,6 +96,7 @@ class PicasaIni(object):
 			output.append("[%s]" % (file_,))
 			for key, val in attrs.items():
 				output.append("%s=%s" % (key, val))
+			output.append("\n")
 		print '=' * 80 + '\n' + '\n'.join(output) + '\n' + '=' * 80
 
 		f = open(self.ini_filename, 'w')

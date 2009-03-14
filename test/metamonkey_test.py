@@ -1,11 +1,9 @@
 import os
-import shutil
-import sys
-sys.path.append('..')
 
 import eggloader
 from mocktest import *
 
+import test_helper
 from pycasa.metamonkey import MetaMonkeyInfo
 
 FIXTURE_A = 'DSCN1636.JPG'

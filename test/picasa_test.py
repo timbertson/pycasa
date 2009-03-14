@@ -1,14 +1,11 @@
 import os
 import shutil
-import sys
-sys.path.append('..')
-
-print __file__
-print os.getcwd()
 
 import eggloader
 from mocktest import *
 
+import test_helper
+import pycasa
 from pycasa import picasa
 from pycasa.picasa import iptcinfo
 
@@ -50,7 +47,6 @@ class PicasaTest(AbsPicasaTest):
 			star=yes
 			""")
 		info = picasa.PicasaInfo('/tmp/a')
-		
 		self.assertEqual(info['star'], True)
 	
 	def test_should_treat_multiple_entries_additively(self):
@@ -168,7 +164,6 @@ class DestructiveFixtureTest(AbsPicasaTest):
 		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
 		self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!'})
 
-	@pending
 	def test_save_should_create_ini_on_save_if_there_is_none(self):
 		ini_path = os.path.join(self.fixtures_path, '.picasa.ini')
 		os.remove(ini_path)
