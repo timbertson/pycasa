@@ -8,10 +8,15 @@ class Main(Command):
 		self.arg('action', default='list', action=self.valid_action, desc="Action: <list|sync|dry-sync>")
 		self.arg('src', desc="source directory (default '.')")
 		self.opt('recurse', bool, default=False, desc="only scan src and subfolders (default: true)")
+		self.arg('master', default='metamonkey', desc="source of truth: <metamonkey|picasa>")
 	
+	def valid_master(self, master):
+		if master not in ['xattr','picasa']:
+			raise RuntimeError("Invalid master: %s" % (master,))
+		
 	def valid_action(self, action):
-		if action not in ['list', 'sync','dry-sync']:
-			raise RuntimeError("Invalid action")
+		if action not in ['list', 'dry-sync']:
+			raise RuntimeError("Invalid action:" % (action,))
 		if not hasattr(self, action) or hasattr(super(self.__class__,self), action):
 			raise RuntimeError("action not yet supported: %s" % (action))
 		
@@ -27,6 +32,9 @@ class Main(Command):
 		print '-' * 80
 		for k,v in info.items():
 			print "%s=%s" % (k,v)
+	
+	def sync(self, file_path, info):
+		info.merge(master)
 	
 	def walk_cb(self, action, dirname, fnames):
 		self.count = 0

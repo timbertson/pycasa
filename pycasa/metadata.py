@@ -17,10 +17,10 @@ class Info(object):
 		self.master = None
 		
 	def merge(self, master = None):
-		if master is not None:
+		if self.master is not None:
 			print "Warning: %s master has already been set"% (self.filename,)
 		if master is not None:
-			if master not in self.infos:
+			if master not in self.infos.keys():
 				raise ValueError("%s is not an info key (which are %s)" % (master, self.infos.keys()))
 			self.master = self.infos[master]
 		else:
@@ -34,7 +34,8 @@ class Info(object):
 	def _update(self):
 		"""tell self.picasa and self.metamonkey about the new details"""
 		for info in self.infos.keys():
-			info.replace_with(self.master)
+			if not info is self.master:
+				info.replace_with(self.master)
 		
 	def _save(self):
 		for info in self.infos.keys():
@@ -43,7 +44,7 @@ class Info(object):
 	def _merge(self, dicts):
 		"""merge two (or more) dicts, taking the most "useful" value amongst all dicts for each key"""
 		raise NotImplementedError
-	
+		
 	def items(self):
 		for name,info in self.infos.items():
 			for k,v in info.items():

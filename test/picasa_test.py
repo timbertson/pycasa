@@ -126,19 +126,13 @@ class FixtureTest(AbsPicasaTest):
 		self.assertEqual(info, {'keywords':['a', 'b'], 'caption':'sunset, woo!', 'star':True})
 	
 	def test_should_replace_info_dict_with_a_new_one(self):
-		#TODO: figure out whether STAR or RATING should be used here
 		info = self.fixture_info(FIXTURE_A)
 		info.replace_with({'star':True, 'keywords':['foo','bar']})
-		self.assertEqual(info, {'rating':90, 'keywords':['foo','bar']})
+		self.assertEqual(info, {'star': True, 'keywords':['foo','bar']})
 		
 		# make sure they ended up in the appropriate dict:
 		self.assertEqual(info.ini_info, {'star':True})
-		self.assertEqual(info.file_info, {'keywords':['foo','bar'], 'rating':90})
-
-	@ignore
-	def test_save_should_create_ini_on_save_if_there_is_none(self):
-		pass
-		
+		self.assertEqual(info.file_info, {'keywords':['foo','bar']})
 
 
 class DestructiveFixtureTest(AbsPicasaTest):
@@ -174,6 +168,21 @@ class DestructiveFixtureTest(AbsPicasaTest):
 		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
 		self.assertEqual(info, {'keywords':['a', 'b', 'c'], 'caption':'sunset, woo!'})
 
+	@pending
+	def test_save_should_create_ini_on_save_if_there_is_none(self):
+		ini_path = os.path.join(self.fixtures_path, '.picasa.ini')
+		os.remove(ini_path)
+		self.assertFalse(os.path.isfile(ini_path))
+		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
+		self.assertEqual(info.ini_info, {})
+		
+		info['star'] = True
+		info.save()
+		self.assertTrue(os.path.isfile(ini_path))
+		
+		info = picasa.PicasaInfo(os.path.join(self.fixtures_path, FIXTURE_A))
+		self.assertEqual(info.ini_info, {'star':True})
+		
 class IPTCTest(TestCase):
 	def test_should_not_fail_on_IPTC_exception(self):
 		mock_on(iptcinfo).IPTCInfo.raising(Exception('some stuff went badly'))

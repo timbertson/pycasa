@@ -235,6 +235,15 @@ class FileInfo(object):
 	def items(self):
 		return self.info_hash
 	
+	def __eq__(self, other):
+		if isinstance(other, dict):
+			return self.dict() == other
+		else:
+			return False
+	
+	def __repr__(self):
+		return "<%s: %r>" % (self.__class__.__name__, self.info_hash)
+	
 	def __iter__(self):
 		return self.info_hash.__iter__()
 	
