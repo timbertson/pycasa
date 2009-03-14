@@ -25,7 +25,6 @@ def proxy(attr):
 def _track(func):
 	def _(self, *a, **k):
 		self._modified = True
-		print "modified: %r" % (self)
 		return getattr(super(self.__class__, self), func.__name__)(*a, **k)
 	return _
 
@@ -35,7 +34,6 @@ class TrackingDict(dict):
 		self._modified = False
 	
 	def modified(self):
-		print "modified? %r - %s" % (self, 'yes' if self._modified else 'no')
 		return self._modified
 	
 	@_track
