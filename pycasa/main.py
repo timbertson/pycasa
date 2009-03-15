@@ -43,7 +43,6 @@ class Main(Command):
 		info.save()
 	
 	def walk_cb(self, action, dirname, fnames):
-		self.count = 0
 		for fname in fnames[:]:
 			fullpath = os.path.join(dirname, fname)
 			if os.path.isfile(fullpath):

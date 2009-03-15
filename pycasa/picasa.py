@@ -205,7 +205,7 @@ class PicasaInfo(object):
 		return combined
 	combined_hash = property(get_combined_hash)
 	
-	def replace_with(self, new_dict):
+	def replace_with(self, new_dict, clear_first=True):
 		dbg("%s replacing with %s" % (self.combined_hash, new_dict))
 		if self.combined_hash == new_dict:
 			dbg("identical..")

@@ -36,7 +36,7 @@ class Info(object):
 		"""tell self.picasa and self.metamonkey about the new details"""
 		for info in self.infos.values():
 			if not info is self.master:
-				info.replace_with(self.master)
+				info.replace_with(self.master, clear_first=False)
 		
 	def _save(self):
 		for info in self.infos.values():
