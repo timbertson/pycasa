@@ -5,7 +5,7 @@ from output import dbg, puts
 	
 from keys import *
 
-RATING_THRESHOLD = 3
+RATING_THRESHOLD = 2
 STAR_FLAG = 'yes'
 PICASA_FILENAME = '.picasa.ini'
 
@@ -20,27 +20,6 @@ def proxy(attr):
 		fn.__name__ = name
 		return fn
 	return decorate
-
-
-def _track(func):
-	def _(self, *a, **k):
-		self._modified = True
-		return getattr(super(self.__class__, self), func.__name__)(*a, **k)
-	return _
-
-class TrackingDict(dict):
-	def __init__(self):
-		super(self.__class__, self).__init__()
-		self._modified = False
-	
-	def modified(self):
-		return self._modified
-	
-	@_track
-	def __setitem__(self, *a): pass
-
-	@_track
-	def __delitem__(self, *a): pass
 
 class PicasaIni(object):
 	# read in a picasa file from dir, and 
@@ -72,7 +51,7 @@ class PicasaIni(object):
 		# dbg("ini getitem %s, all items = %s" % (item, self.ini_info))
 		if not item in self.ini_info:
 			dbg("adding file: %s" % (item,))
-			self.ini_info[item] = TrackingDict()
+			self.ini_info[item] = {}
 		return self.ini_info[item]
 	
 	@proxy('ini_info')
@@ -96,7 +75,7 @@ class PicasaIni(object):
 			if match:
 				current_file = match.group(1)
 				if current_file not in info:
-					info[current_file] = TrackingDict()
+					info[current_file] = {}
 			else:
 				if '=' in line:
 					attr, val = [s.strip() for s in line.split('=', 1)]
@@ -114,7 +93,7 @@ class PicasaIni(object):
 		self._encode_special_flags()
 		output = []
 		for file_, attrs in self.ini_info.items():
-			if not attrs.modified():
+			if not len(attrs) == 0:
 				dbg("skipping...")
 				continue
 			output.append("[%s]" % (file_,))
