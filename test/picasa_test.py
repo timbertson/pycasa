@@ -11,6 +11,9 @@ from pycasa.picasa import iptcinfo
 
 FIXTURE_A = 'DSCN1636.JPG'
 
+from pycasa import output
+output.lvl = 1
+
 class AbsPicasaTest(TestCase):
 	def setUp(self):
 		self.files = []
@@ -91,6 +94,7 @@ class PicasaTest(AbsPicasaTest):
 		self.assertEqual(lines[0], '[a]')
 		self.assertEqual(sorted(lines[1:]), ['a=x', 'x=y'])
 		
+	@pending
 	def test_should_get_star_from_rating_if_rating_key_exists(self):
 		self.write_ini("""
 			[a]

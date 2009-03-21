@@ -89,19 +89,19 @@ class PicasaIni(object):
 		return info
 	
 	def save(self):
-		dbg("writing ini: %s" % (self.ini_info,))
 		self._encode_special_flags()
+		dbg("writing ini: %s" % (self.ini_info,))
 		output = []
 		for file_, attrs in self.ini_info.items():
-			if not len(attrs) == 0:
-				dbg("skipping...")
+			if len(attrs) == 0:
+				dbg("skipping attrs for %s..." % (file_,))
 				continue
 			output.append("[%s]" % (file_,))
 			for key, val in attrs.items():
 				output.append("%s=%s" % (key, val))
 			output.append("")
 		dbg('=' * 80 + '\n' + '\n'.join(output) + '\n' + '=' * 80)
-		if len(output) == 0:
+		if len(output) == 0 and not os.path.isfile(self.ini_filename):
 			return
 
 		f = open(self.ini_filename, 'w')
