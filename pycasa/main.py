@@ -6,7 +6,7 @@ import output
 
 class Main(Command):
 	def configure(self):
-		self.arg('action', default='list', action=self.valid_action, desc="Action: <list|sync|dry-sync>")
+		self.arg('action', default='list', action=self.valid_action, desc="Action: <list|sync|dry-sync|reset-picasa>")
 		self.arg('src', desc="source directory (default '.')")
 		self.opt('verbose', bool, default=False)
 		self.opt('recurse', bool, default=False, desc="only scan src and subfolders (default: true)")
@@ -17,18 +17,34 @@ class Main(Command):
 			raise RuntimeError("Invalid master: %s" % (master,))
 		
 	def valid_action(self, action):
-		if action not in ['list', 'sync', 'dry-sync']:
+		if action not in ['list', 'sync', 'dry-sync', 'reset-picasa']:
 			raise RuntimeError("Invalid action: %s" % (action,))
+		action = action.replace('-','_')
 		if not hasattr(self, action) or hasattr(super(self.__class__,self), action):
 			raise RuntimeError("action not yet supported: %s" % (action))
+		return action
 		
 	def run(self, opts):
 		self.opts = opts
 		self.count = 0
 		if self.opts.verbose:
 			output.lvl += 1
-		os.path.walk(opts.src, self.walk_cb, getattr(self, opts.action))
+		print opts.action
+		if opts.action == 'reset_picasa':
+			self.reset_picasa(opts)
+		else:
+			os.path.walk(opts.src, self.walk_cb, getattr(self, opts.action))
 		print "Files traversed: %s" % (self.count,)
+	
+	def reset_picasa(self, opts):
+		print os.path.expanduser('~/Application Support/Google/Picasa3/')
+		base = os.path.expanduser(os.path.join('~/Library/Application Support/Google/Picasa3/db3'.split('/')))
+		files_to_remove = ['imagedata_caption.pmp', 'imagedata_caption.pmp', 'imagedata_tags.pmp', 'starlist.txt']
+		for file_ in os.listdir(base):
+			print file_
+			if file_ in files_to_remove:
+				print "REMOVING: %s" % (file_,)
+				os.remove(os.path.join(base, path))
 	
 	def list(self, file_path, info):
 		if len(info) == 0: return
