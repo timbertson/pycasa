@@ -27,9 +27,9 @@ class PicasaIni(object):
 	# contained
 
 	# Currently supported attributes:
-	# star (yes/[missing])
+	# star (bool)
 	# caption (string)
-	# keywords (comma-separated)
+	# keywords (list)
 	
 	# example file:
 	#   [DSCN1684.MOV]
@@ -53,9 +53,6 @@ class PicasaIni(object):
 			dbg("adding file: %s" % (item,))
 			self.ini_info[item] = {}
 		return self.ini_info[item]
-	
-	@proxy('ini_info')
-	def __delitem__(self, item): pass
 	
 	newfile = re.compile('^\s*\[(.*)\]\s*$')
 	
@@ -87,48 +84,6 @@ class PicasaIni(object):
 					print "doesn't look like an attr to me: %s" % (line, )
 		f.close()
 		return info
-	
-	def save(self):
-		self._encode_special_flags()
-		dbg("writing ini: %s" % (self.ini_info,))
-		output = []
-		for file_, attrs in self.ini_info.items():
-			if len(attrs) == 0:
-				dbg("skipping attrs for %s..." % (file_,))
-				continue
-			output.append("[%s]" % (file_,))
-			for key, val in attrs.items():
-				output.append("%s=%s" % (key, val))
-			output.append("")
-		dbg('=' * 80 + '\n' + '\n'.join(output) + '\n' + '=' * 80)
-		if len(output) == 0 and not os.path.isfile(self.ini_filename):
-			return
-
-		f = open(self.ini_filename, 'w')
-		f.write('\n'.join(output))
-		f.close()
-		
-		dbg("saved file contents are:")
-		f = open(self.ini_filename)
-		dbg('\n'.join(f.readlines()))
-		dbg("saved file contents")
-
-		
-		self._decode_special_flags()
-	
-	def _encode_special_flags(self):
-		"""
-		returns a copy dict with special flags in their on-disk form. i.e: {'star':True} becomes {'star':'yes'}
-		"""
-		for file_, attrs in self.ini_info.items():
-			if STAR in attrs:
-				if attrs[STAR]:
-					attrs[STAR] = STAR_FLAG
-				else:
-					del attrs[STAR]
-					
-			if TAGS in attrs:
-				attrs[TAGS] = ','.join(attrs[TAGS])
 		
 	def _decode_special_flags(self):
 		"""
@@ -140,7 +95,7 @@ class PicasaIni(object):
 			if TAGS in attrs:
 				attrs[TAGS] = [k.strip() for k in attrs[TAGS].split(',')]
 
-class PicasaInfo(object):
+class Info(object):
 	@classmethod
 	def _reset(cls):
 		"""for use in tests only"""
@@ -149,6 +104,7 @@ class PicasaInfo(object):
 
 	iptc_regex = re.compile('\.jpe?g$',re.I)
 	iptc_attrs = [TAGS, CAPTION]
+	atts = [TAGS, CAPTION, STAR]
 	
 	def which_info(self, attr):
 		if self.file_info and self.iptc_regex.search(self.filename) is not None:
@@ -184,49 +140,25 @@ class PicasaInfo(object):
 		return combined
 	combined_hash = property(get_combined_hash)
 	
-	def replace_with(self, new_dict, clear_first=True):
-		dbg("%s replacing with %s" % (self.combined_hash, new_dict))
-		if self.combined_hash == new_dict:
-			dbg("identical..")
-			return
-		self._clear()
-		for (k,v) in new_dict.items():
-			self[k] = v
-	
-	def save(self):
-		self.ini.save()
-		if self.file_info:
-			self.file_info.save()
-	
 	def __getitem__(self, item):
 		"""return value for item (or None)"""
 		return self.which_info(item).get(item, None)
 	
-	def __setitem__(self, item, val):
-		self.which_info(item)[item] = val
-		if item == RATING:
-			self.which_info(STAR)[STAR] = int(val) >= RATING_THRESHOLD
-	
-	def __delitem__(self, item):
-		"""delete from *both* info stores"""
-		for store in (self.file_info, self.ini_info):
-			if store is not None:
-				try:
-					del store[item]
-				except KeyError: pass
-			
 	def __eq__(self, other):
 		if isinstance(other, self.__class__):
 			return self.combined_hash == other.combined_hash
 		else:
 			return self.combined_hash == other
 	
-	def _clear(self):
-		for k in self.combined_hash:
-			del self[k]
-	
 	def __repr__(self):
 		return "<%s for %s: %s>" % (self.__class__.__name__, self.filename, self.combined_hash)
+	
+	def _get_keywords(self): return self[TAGS]
+	def _get_caption(self): return self[CAPTION]
+	def _get_star(self): return self[STAR]
+	star = property(_get_star)
+	caption = property(_get_caption)
+	keywords = property(_get_keywords)
 		
 import iptcinfo
 class FileInfo(object):
@@ -264,13 +196,3 @@ class FileInfo(object):
 
 	def get(self, item, default):
 		return self.info_hash.get(item, default)
-	
-	@proxy('info_hash')
-	def __setitem__(self, item, val): pass
-
-	@proxy('info_hash')
-	def __delitem__(self, item): pass
-
-	def save(self):
-		if self.iptc is not None:
-			self.iptc.save()
